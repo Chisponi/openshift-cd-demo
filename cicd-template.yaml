@@ -53,7 +53,7 @@ objects:
     labels:
       app: cicd-pipeline
       name: cicd-pipeline
-    name: tasks-pipeline
+    name: petclinic-pipeline
   spec:
     triggers:
       - type: GitHub
@@ -82,10 +82,9 @@ objects:
             stages {
               stage('Build App') {
                 steps {
-                  git branch: 'eap-7', url: 'http://gogs:3000/gogs/openshift-tasks.git'
+                  git branch: 'eap-7', url: 'http://gogs:3000/gogs/spring-petclinic.git'
                   script {
-                      def pom = readMavenPom file: 'pom.xml'
-                      version = pom.version
+                      version = readMavenPom().version
                   }
                   sh "${mvnCmd} install -DskipTests=true"
                 }
@@ -113,7 +112,7 @@ objects:
                   expression {
                     openshift.withCluster() {
                       openshift.withProject(env.DEV_PROJECT) {
-                        return !openshift.selector("bc", "tasks").exists();
+                        return !openshift.selector("bc", "spring-petclinic").exists();
                       }
                     }
                   }
@@ -122,7 +121,7 @@ objects:
                   script {
                     openshift.withCluster() {
                       openshift.withProject(env.DEV_PROJECT) {
-                        openshift.newBuild("--name=tasks", "--image-stream=jboss-eap70-openshift:1.5", "--binary=true")
+                        openshift.newBuild("--name=spring-petclinic", "--image-stream=redhat-openjdk18-openshift:1.2", "--binary=true")
                       }
                     }
                   }
@@ -130,13 +129,12 @@ objects:
               }
               stage('Build Image') {
                 steps {
-                  sh "rm -rf oc-build && mkdir -p oc-build/deployments"
-                  sh "cp target/openshift-tasks.war oc-build/deployments/ROOT.war"
+                  sh "cp target/spring-petclinic-${readMavenPom().version}.jar oc-build/deployments/ROOT.war"
                   
                   script {
                     openshift.withCluster() {
                       openshift.withProject(env.DEV_PROJECT) {
-                        openshift.selector("bc", "tasks").startBuild("--from-dir=oc-build", "--wait=true")
+                        openshift.selector("bc", "spring-petclinic").startBuild("--from-file=target/spring-petclinic-${readMavenPom().version}.jar", "--wait=true")
                       }
                     }
                   }
@@ -147,7 +145,7 @@ objects:
                   expression {
                     openshift.withCluster() {
                       openshift.withProject(env.DEV_PROJECT) {
-                        return !openshift.selector('dc', 'tasks').exists()
+                        return !openshift.selector('dc', 'spring-petclinic').exists()
                       }
                     }
                   }
@@ -156,17 +154,17 @@ objects:
                   script {
                     openshift.withCluster() {
                       openshift.withProject(env.DEV_PROJECT) {
-                        def app = openshift.newApp("tasks:latest")
+                        def app = openshift.newApp("spring-petclinic:latest")
                         app.narrow("svc").expose();
 
-                        openshift.set("probe dc/tasks --readiness --get-url=http://:8080/ws/demo/healthcheck --initial-delay-seconds=30 --failure-threshold=10 --period-seconds=10")
-                        openshift.set("probe dc/tasks --liveness  --get-url=http://:8080/ws/demo/healthcheck --initial-delay-seconds=180 --failure-threshold=10 --period-seconds=10")
+                        openshift.set("probe dc/spring-petclinic --readiness --get-url=http://:8080/manage/health --initial-delay-seconds=30 --failure-threshold=10 --period-seconds=10")
+                        openshift.set("probe dc/spring-petclinic --liveness  --get-url=http://:8080/manage/health --initial-delay-seconds=180 --failure-threshold=10 --period-seconds=10")
 
-                        def dc = openshift.selector("dc", "tasks")
+                        def dc = openshift.selector("dc", "spring-petclinic")
                         while (dc.object().spec.replicas != dc.object().status.availableReplicas) {
                             sleep 10
                         }
-                        openshift.set("triggers", "dc/tasks", "--manual")
+                        openshift.set("triggers", "dc/spring-petclinic", "--manual")
                       }
                     }
                   }
@@ -177,7 +175,7 @@ objects:
                   script {
                     openshift.withCluster() {
                       openshift.withProject(env.DEV_PROJECT) {
-                        openshift.selector("dc", "tasks").rollout().latest();
+                        openshift.selector("dc", "spring-petclinic").rollout().latest();
                       }
                     }
                   }
@@ -191,7 +189,7 @@ objects:
 
                   script {
                     openshift.withCluster() {
-                      openshift.tag("${env.DEV_PROJECT}/tasks:latest", "${env.STAGE_PROJECT}/tasks:${version}")
+                      openshift.tag("${env.DEV_PROJECT}/spring-petclinic:latest", "${env.STAGE_PROJECT}/spring-petclinic:${version}")
                     }
                   }
                 }
@@ -201,15 +199,15 @@ objects:
                   script {
                     openshift.withCluster() {
                       openshift.withProject(env.STAGE_PROJECT) {
-                        if (openshift.selector('dc', 'tasks').exists()) {
-                          openshift.selector('dc', 'tasks').delete()
-                          openshift.selector('svc', 'tasks').delete()
-                          openshift.selector('route', 'tasks').delete()
+                        if (openshift.selector('dc', 'spring-petclinic').exists()) {
+                          openshift.selector('dc', 'spring-petclinic').delete()
+                          openshift.selector('svc', 'spring-petclinic').delete()
+                          openshift.selector('route', 'spring-petclinic').delete()
                         }
 
-                        openshift.newApp("tasks:${version}").narrow("svc").expose()
-                        openshift.set("probe dc/tasks --readiness --get-url=http://:8080/ws/demo/healthcheck --initial-delay-seconds=30 --failure-threshold=10 --period-seconds=10")
-                        openshift.set("probe dc/tasks --liveness  --get-url=http://:8080/ws/demo/healthcheck --initial-delay-seconds=180 --failure-threshold=10 --period-seconds=10")
+                        openshift.newApp("spring-petclinic:${version}").narrow("svc").expose()
+                        openshift.set("probe dc/spring-petclinic --readiness --get-url=http://:8080/ws/demo/healthcheck --initial-delay-seconds=30 --failure-threshold=10 --period-seconds=10")
+                        openshift.set("probe dc/spring-petclinic --liveness  --get-url=http://:8080/ws/demo/healthcheck --initial-delay-seconds=180 --failure-threshold=10 --period-seconds=10")
                       }
                     }
                   }
@@ -347,9 +345,9 @@ objects:
 
             cat <<EOF > /tmp/data.json
             {
-              "clone_addr": "https://github.com/OpenShiftDemos/openshift-tasks.git",
+              "clone_addr": "https://github.com/spring-projects/spring-petclinic.git",
               "uid": 1,
-              "repo_name": "openshift-tasks"
+              "repo_name": "spring-petclinic"
             }
             EOF
 
@@ -357,7 +355,7 @@ objects:
             -u $GOGS_USER:$GOGS_PWD -X POST http://$GOGS_SVC:3000/api/v1/repos/migrate -d @/tmp/data.json)
 
             if [ $_RETURN != "201" ] ;then
-              echo "ERROR: Failed to imported openshift-tasks GitHub repo"
+              echo "ERROR: Failed to imported spring-petclinic GitHub repo"
               cat /tmp/curl.log
               exit 255
             fi
@@ -368,7 +366,7 @@ objects:
             {
               "type": "gogs",
               "config": {
-                "url": "https://openshift.default.svc.cluster.local/oapi/v1/namespaces/$CICD_NAMESPACE/buildconfigs/tasks-pipeline/webhooks/${WEBHOOK_SECRET}/generic",
+                "url": "https://openshift.default.svc.cluster.local/oapi/v1/namespaces/$CICD_NAMESPACE/buildconfigs/petclinic-pipeline/webhooks/${WEBHOOK_SECRET}/generic",
                 "content_type": "json"
               },
               "events": [
@@ -379,7 +377,7 @@ objects:
             EOF
 
             _RETURN=$(curl -o /tmp/curl.log -sL -w "%{http_code}" -H "Content-Type: application/json" \
-            -u $GOGS_USER:$GOGS_PWD -X POST http://$GOGS_SVC:3000/api/v1/repos/gogs/openshift-tasks/hooks -d @/tmp/data.json)
+            -u $GOGS_USER:$GOGS_PWD -X POST http://$GOGS_SVC:3000/api/v1/repos/gogs/spring-petclinic/hooks -d @/tmp/data.json)
 
             if [ $_RETURN != "201" ] ; then
               echo "ERROR: Failed to set webhook"

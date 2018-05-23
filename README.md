@@ -41,7 +41,7 @@ The application used in this pipeline is a JAX-RS application which is available
 If you have access to RHPDS, provisioning of this demo is automated via the service catalog under **OpenShift Demos &rarr; OpenShift CI/CD for Monolith**. If you don't know what RHPDS is, read the instructions in the next section.
 
 ## Automated Deploy on OpenShift
-You can se the `scripts/provision.sh` script provided to deploy the entire demo:
+You can use the `support/provision.sh` script provided to deploy the entire demo:
 
   ```
   ./provision.sh --help
@@ -85,7 +85,7 @@ your own names and use the following to create the demo:
 
 * If pipeline execution fails with ```error: no match for "jboss-eap70-openshift"```, import the jboss imagestreams in OpenShift.
   ```
-  oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.12/eap/eap70-image-stream.json -n openshift
+  oc create -f https://raw.githubusercontent.com/jboss-openshift/application-templates/ose-v1.4.12/openjdk/openjdk18-image-stream.json -n openshift
   ```
 * If Maven fails with `/opt/rh/rh-maven33/root/usr/bin/mvn: line 9:   298 Killed` (e.g. during static analysis), you are running out of memory and need more memory for OpenShift.
 
