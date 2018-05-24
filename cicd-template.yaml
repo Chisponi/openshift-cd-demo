@@ -78,7 +78,7 @@ objects:
         - name: STAGE_PROJECT
           value: ${STAGE_PROJECT}
         jenkinsfile: |-
-          def version, mvnCmd = "mvn -s configuration/cicd-settings-nexus3.xml"
+          def version
 
           pipeline {
             agent {
@@ -92,12 +92,12 @@ objects:
                       version = readMavenPom().version
                   }
                   sh "curl -o ~/.m2/settings.xml -sL https://raw.githubusercontent.com/siamaksade/openshift-cd-demo/nexus/support/settings.xml"
-                  sh "${mvnCmd} install -DskipTests=true"
+                  sh "mvn install -DskipTests=true"
                 }
               }
               stage('Test') {
                 steps {
-                  sh "${mvnCmd} test"
+                  sh "mvn test"
                   step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])
                 }
               }
@@ -117,7 +117,7 @@ objects:
               }
               stage('Archive App') {
                 steps {
-                  sh "${mvnCmd} deploy -DskipTests=true"
+                  sh "mvn deploy -DskipTests=true"
                 }
               }
               stage('Create Image Builder') {

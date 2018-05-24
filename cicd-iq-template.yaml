@@ -67,6 +67,32 @@ objects:
   stringData:
     password: ${NEXUS_IQ_PASSWORD}
     username: ${NEXUS_IQ_USER}
+# Jenkins S2I
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: jenkins-iq
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: jenkins-build
+  spec:
+    source:                       
+      git:
+        uri: https://github.com/siamaksade/openshift-cd-demo.git
+      contextDir: jenkins
+      type: Git
+    strategy:                     
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: jenkins:latest
+          namespace: openshift
+      type: Source
+    output:                       
+      to:
+        kind: ImageStreamTag
+        name: jenkins-iq:latest
 # Pipeline
 - apiVersion: v1
   kind: BuildConfig
@@ -96,7 +122,7 @@ objects:
         - name: STAGE_PROJECT
           value: ${STAGE_PROJECT}
         jenkinsfile: |-
-          def version, mvnCmd = "mvn -s configuration/cicd-settings-nexus3.xml"
+          def version
 
           pipeline {
             agent {
@@ -110,12 +136,12 @@ objects:
                       version = readMavenPom().version
                   }
                   sh "curl -o ~/.m2/settings.xml -sL https://raw.githubusercontent.com/siamaksade/openshift-cd-demo/nexus/support/settings.xml"
-                  sh "${mvnCmd} install -DskipTests=true"
+                  sh "mvn install -DskipTests=true"
                 }
               }
               stage('Test') {
                 steps {
-                  sh "${mvnCmd} test"
+                  sh "mvn test"
                   step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])
                 }
               }
@@ -135,7 +161,7 @@ objects:
               }
               stage('Archive App') {
                 steps {
-                  sh "${mvnCmd} deploy -DskipTests=true"
+                  sh "mvn deploy -DskipTests=true"
                 }
               }
               stage('Create Image Builder') {
@@ -312,9 +338,12 @@ objects:
           - -x
           - -c
           - |
-            oc set resources dc/jenkins --limits=memory=1Gi --requests=memory=512Mi 
-            oc set env dc/jenkins INSTALL_PLUGINS=nexus-jenkins-plugin:3.0.20180214-134325.e135900 OVERRIDE_PV_PLUGINS_WITH_IMAGE_PLUGINS=true
+            oc rollout cancel dc/jenkins
+            oc rollout status dc/jenkins -w
+            oc patch dc jenkins -n cicd -p '{"spec":{"triggers":[{"imageChangeParams": {"automatic": true,"containerNames": ["jenkins"],"from": {"kind": "ImageStreamTag","name": "jenkins-iq:latest"}},"type": "ImageChange"}]}}'
+            oc set resources dc/jenkins --limits=memory=2Gi --requests=memory=512Mi 
             oc label dc jenkins app=jenkins --overwrite 
+            oc rollout latest dc/jenkins 
 
             HOSTNAME=$(oc get route jenkins -o template --template='{{.spec.host}}' | sed "s/jenkins-${CICD_NAMESPACE}.//g")
             GOGS_HOSTNAME="gogs-$CICD_NAMESPACE.$HOSTNAME"
