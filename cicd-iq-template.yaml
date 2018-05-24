@@ -38,6 +38,14 @@ parameters:
   value: "pet-clinic"
   name: NEXUS_IQ_APP
   required: true
+- displayName: Nexus IQ Username
+  value: "admin"
+  name: NEXUS_IQ_USER
+  required: true
+- displayName: Nexus IQ Password
+  value: "admin123"
+  name: NEXUS_IQ_PASSWORD
+  required: true
 objects:
 - apiVersion: v1
   groupNames: null
@@ -49,6 +57,16 @@ objects:
   subjects:
   - kind: ServiceAccount
     name: default
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      credential.sync.jenkins.openshift.io: "true"
+    name: nexus-iq
+  type: Opaque
+  stringData:
+    password: ${NEXUS_IQ_PASSWORD}
+    username: ${NEXUS_IQ_USER}
 # Pipeline
 - apiVersion: v1
   kind: BuildConfig
