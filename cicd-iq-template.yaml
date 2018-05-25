@@ -80,6 +80,7 @@ objects:
     source:                       
       git:
         uri: https://github.com/siamaksade/openshift-cd-demo.git
+        ref: nexus
       contextDir: jenkins
       type: Git
     strategy:                     
@@ -380,6 +381,12 @@ objects:
               oc new-app -f https://raw.githubusercontent.com/OpenShiftDemos/nexus/master/nexus3-persistent-template.yaml --param=NEXUS_VERSION=3.11.0 --param=MAX_MEMORY=2Gi
             fi
 
+            if [ "${EPHEMERAL}" == "true" ] ; then
+              oc new-app -f https://raw.githubusercontent.com/OpenShiftDemos/nexus/master/nexus-iq-template.yaml
+            else
+              oc new-app -f https://raw.githubusercontent.com/OpenShiftDemos/nexus/master/nexus-iq-persistent-template.yaml
+            fi
+            
             GOGS_SVC=$(oc get svc gogs -o template --template='{{.spec.clusterIP}}')
             GOGS_USER=gogs
             GOGS_PWD=gogs
