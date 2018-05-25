@@ -3,7 +3,7 @@
   <nxrmConfigs/>
   <iqConfigs>
     <org.sonatype.nexus.ci.config.NxiqConfiguration>
-      <serverUrl>http://iq.nexus-trial.com:8070/</serverUrl>
+      <serverUrl>http://nexus-iq:8070/</serverUrl>
       <isPkiAuthentication>false</isPkiAuthentication>
       <credentialsId>cicd-nexus-iq</credentialsId>
     </org.sonatype.nexus.ci.config.NxiqConfiguration>
