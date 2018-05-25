@@ -43,7 +43,6 @@ parameters:
   name: NEXUS_IQ_USER
   required: true
 - displayName: Nexus IQ Password
-  value: "admin123"
   name: NEXUS_IQ_PASSWORD
   required: true
 objects:
@@ -94,6 +93,9 @@ objects:
       to:
         kind: ImageStreamTag
         name: jenkins-iq:latest
+    triggers:
+      - imageChange:
+        type: ImageChange
 # Pipeline
 - apiVersion: v1
   kind: BuildConfig
